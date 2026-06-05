@@ -1,0 +1,35 @@
+# === Secrets — NEVER commit ===
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets.*
+
+# === Real research data — keep OUT of the repo (privacy / confidentiality) ===
+# Only synthetic/example data may be committed, and only knowingly.
+data/
+*.sav
+*.dta
+/examples/*.csv
+/examples/*.xlsx
+/examples/results.png
+
+# === Copyrighted material — must never be redistributed ===
+# The reference textbooks are CITED, not stored. Do not commit PDFs/ebooks.
+*.pdf
+*.epub
+reference_books/
+
+# === Python ===
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+.pytest_cache/
+
+# === OS / editor ===
+.DS_Store
+.idea/
+.vscode/

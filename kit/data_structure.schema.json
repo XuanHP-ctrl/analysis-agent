@@ -1,0 +1,114 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "data_structure.schema.json",
+  "title": "Data Structure Descriptor",
+  "description": "Input contract #2. Describes the RAW DATA so the rule engine can fire and so generated code references the real columns. Can be filled by hand or produced by an auto-profiler, then confirmed by the human at the first gate.",
+  "type": "object",
+  "required": ["file", "layout", "columns", "blocks"],
+  "properties": {
+    "file": {
+      "type": "object",
+      "required": ["path", "format"],
+      "properties": {
+        "path": { "type": "string" },
+        "format": { "type": "string", "enum": ["csv", "tsv", "xlsx", "parquet"] },
+        "encoding": { "type": "string", "default": "utf-8" },
+        "sep": { "type": "string", "default": ";", "description": "FactoMineR examples use ';' as field separator." },
+        "decimal": { "type": "string", "default": "." },
+        "header": { "type": "boolean", "default": true },
+        "row_names_col": { "type": ["integer", "null"], "description": "1-indexed column holding individual names, or null." }
+      }
+    },
+    "layout": {
+      "type": "string",
+      "enum": [
+        "wide_product_by_attribute",
+        "long_assessment",
+        "consumer_by_product",
+        "contingency",
+        "custom"
+      ],
+      "description": "Physical shape. 'long_assessment' = one row per (assessor x product). 'consumer_by_product' = hedonic matrix. 'contingency' = counts (e.g. product x CATA term)."
+    },
+    "columns": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "dtype", "role"],
+        "properties": {
+          "name": { "type": "string" },
+          "dtype": { "type": "string", "enum": ["numeric", "integer", "categorical", "ordinal", "binary", "datetime", "text", "id"] },
+          "role": {
+            "type": "string",
+            "enum": [
+              "product_id", "consumer_id", "panelist_id", "session", "replicate",
+              "attribute_sensory", "attribute_instrumental",
+              "hedonic_liking", "jar", "cata_term",
+              "demographic", "attitude", "usage_UA", "perception",
+              "brand", "brand_health_metric", "marketing_4P",
+              "time", "ignore"
+            ]
+          },
+          "block": { "type": "string", "description": "Name of the block/lens this column belongs to (must match a blocks[].name)." },
+          "scale": {
+            "type": "object",
+            "properties": {
+              "type": { "type": "string", "enum": ["interval", "ordinal", "nominal", "binary", "count", "ratio"] },
+              "min": { "type": "number" },
+              "max": { "type": "number" },
+              "levels": { "type": "array", "items": { "type": "string" } }
+            }
+          },
+          "notes": { "type": "string" }
+        }
+      }
+    },
+    "blocks": {
+      "type": "array",
+      "description": "Groups of columns = the 'lenses'. This is what makes MFA / multi-table / preference-mapping rules eligible.",
+      "items": {
+        "type": "object",
+        "required": ["name", "lens", "columns"],
+        "properties": {
+          "name": { "type": "string" },
+          "lens": {
+            "type": "string",
+            "enum": ["sensory", "instrumental", "hedonic", "jar", "cata", "demographic", "attitude", "usage_UA", "brand_health", "marketing_4P", "perception", "shelf_life"]
+          },
+          "columns": { "type": "array", "items": { "type": "string" } },
+          "standardize": { "type": "boolean", "default": true, "description": "Whether to scale within-block (type='s' in MFA / scale.unit=TRUE in PCA)." }
+        }
+      }
+    },
+    "keys": {
+      "type": "object",
+      "description": "How tables relate, for joins across blocks.",
+      "properties": {
+        "product_key": { "type": "string" },
+        "consumer_key": { "type": "string" },
+        "panelist_key": { "type": "string" }
+      }
+    }
+  },
+  "examples": [
+    {
+      "file": { "path": "yogurt_long.csv", "format": "csv", "sep": ";", "decimal": ".", "header": true, "row_names_col": null },
+      "layout": "long_assessment",
+      "columns": [
+        { "name": "Panelist", "dtype": "id", "role": "panelist_id" },
+        { "name": "Product", "dtype": "categorical", "role": "product_id" },
+        { "name": "Session", "dtype": "categorical", "role": "session" },
+        { "name": "Sweet", "dtype": "numeric", "role": "attribute_sensory", "block": "QDA", "scale": { "type": "interval", "min": 0, "max": 10 } },
+        { "name": "Sour", "dtype": "numeric", "role": "attribute_sensory", "block": "QDA", "scale": { "type": "interval", "min": 0, "max": 10 } },
+        { "name": "pH", "dtype": "numeric", "role": "attribute_instrumental", "block": "PHYSCHEM" },
+        { "name": "Brix", "dtype": "numeric", "role": "attribute_instrumental", "block": "PHYSCHEM" }
+      ],
+      "blocks": [
+        { "name": "QDA", "lens": "sensory", "columns": ["Sweet", "Sour"], "standardize": true },
+        { "name": "PHYSCHEM", "lens": "instrumental", "columns": ["pH", "Brix"], "standardize": true }
+      ],
+      "keys": { "product_key": "Product", "panelist_key": "Panelist" }
+    }
+  ]
+}

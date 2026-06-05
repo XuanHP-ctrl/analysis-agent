@@ -1,0 +1,20 @@
+name: validate-kit
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install validation deps
+        run: pip install pyyaml jsonschema
+      - name: Validate input contracts, rules and code
+        run: python tests/validate_kit.py

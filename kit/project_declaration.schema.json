@@ -1,0 +1,141 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "project_declaration.schema.json",
+  "title": "Project Declaration Form",
+  "description": "Input contract #1. The human fills this in to declare WHAT the project is and WHY. It calibrates which methods are appropriate and how cautious the agent must be. It does NOT describe the raw data columns (that is data_structure.schema.json).",
+  "type": "object",
+  "required": ["project", "domain", "objectives", "data_collection", "governance"],
+  "properties": {
+    "project": {
+      "type": "object",
+      "required": ["name", "analyst", "date"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "client": { "type": "string" },
+        "analyst": { "type": "string", "description": "Person accountable for the analysis (not the agent)." },
+        "date": { "type": "string", "format": "date" }
+      }
+    },
+    "domain": {
+      "type": "string",
+      "enum": ["consumer", "brand", "product", "mixed"],
+      "description": "Primary lens. 'brand' and parts of 'mixed' are NOT covered by the sensometrics sources; the agent must flag method choices there as extrapolation."
+    },
+    "business_question": {
+      "type": "string",
+      "description": "Plain-language question the stakeholder actually wants answered."
+    },
+    "objectives": {
+      "type": "array",
+      "minItems": 1,
+      "description": "One or more analytical objectives. Each maps to candidate methods in method_selection_rules.yaml.",
+      "items": {
+        "type": "object",
+        "required": ["objective_type"],
+        "properties": {
+          "objective_type": {
+            "type": "string",
+            "enum": [
+              "describe_products",
+              "compare_products",
+              "segment_consumers",
+              "drivers_of_liking",
+              "optimize_product",
+              "map_preferences",
+              "relate_blocks",
+              "characterize_clusters",
+              "discrimination",
+              "shelf_life",
+              "exploratory"
+            ]
+          },
+          "description": { "type": "string" },
+          "primary": { "type": "boolean", "default": false }
+        }
+      }
+    },
+    "data_collection": {
+      "type": "object",
+      "required": ["methods", "n_products"],
+      "description": "HOW the data was gathered. Drives both method eligibility and assumption checks.",
+      "properties": {
+        "methods": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "QDA_descriptive", "CATA", "JAR", "hedonic_test", "napping",
+              "sorting", "free_comment", "free_choice_profiling",
+              "survey_UA", "attitude_survey", "brand_health_tracker",
+              "instrumental_physicochemical", "shelf_life_study", "other"
+            ]
+          }
+        },
+        "presentation_design": {
+          "type": "string",
+          "enum": ["monadic", "monadic_sequential", "paired", "unknown"]
+        },
+        "balanced_design": { "type": "boolean" },
+        "replicates": { "type": "integer", "minimum": 0, "description": "Number of repeats per assessor-product. 0/1 means no replication -> raw-data methods like CVA are not advisable." },
+        "n_products": { "type": "integer", "minimum": 1 },
+        "n_consumers": { "type": "integer", "minimum": 0 },
+        "n_panelists": { "type": "integer", "minimum": 0, "description": "Trained assessors (distinct from consumers)." },
+        "hedonic_scale": {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string", "enum": ["9_point", "line_scale", "7_point", "other"] },
+            "min": { "type": "number" },
+            "max": { "type": "number" }
+          }
+        },
+        "sampling": { "type": "string", "description": "How respondents were recruited; representativeness claim, if any." },
+        "fieldwork_period": { "type": "string" },
+        "known_limitations": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Declared limitations (small n, convenience sample, unbalanced, missingness). The agent must carry these into every conclusion."
+        }
+      }
+    },
+    "governance": {
+      "type": "object",
+      "required": ["anonymized", "decision_stakes"],
+      "properties": {
+        "anonymized": { "type": "boolean", "description": "True if no personal identifiers present." },
+        "consent_for_analysis": { "type": "boolean" },
+        "decision_stakes": {
+          "type": "string",
+          "enum": ["exploratory_internal", "product_decision", "public_claim", "regulatory"],
+          "description": "Higher stakes -> stricter assumption checks and more conservative conclusions. 'public_claim'/'regulatory' should never run fully unattended."
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "project": { "id": "P-2026-014", "name": "Yogurt reformulation", "client": "Internal R&D", "analyst": "Nguyen Van A", "date": "2026-06-04" },
+      "domain": "product",
+      "business_question": "Which sensory attributes drive liking, and what is the optimal sweetness/acidity profile?",
+      "objectives": [
+        { "objective_type": "drivers_of_liking", "primary": true, "description": "Link descriptive sensory profile to consumer liking." },
+        { "objective_type": "optimize_product", "description": "Find target profile using JAR + liking." },
+        { "objective_type": "segment_consumers", "description": "Check whether preference segments exist." }
+      ],
+      "data_collection": {
+        "methods": ["QDA_descriptive", "hedonic_test", "JAR", "instrumental_physicochemical"],
+        "presentation_design": "monadic_sequential",
+        "balanced_design": true,
+        "replicates": 2,
+        "n_products": 8,
+        "n_consumers": 112,
+        "n_panelists": 11,
+        "hedonic_scale": { "type": "9_point", "min": 1, "max": 9 },
+        "sampling": "Recruited category users, quota by age/gender; not nationally representative.",
+        "fieldwork_period": "2026-04",
+        "known_limitations": ["Convenience sample", "Only 8 products may limit preference-map stability"]
+      },
+      "governance": { "anonymized": true, "consent_for_analysis": true, "decision_stakes": "product_decision" }
+    }
+  ]
+}

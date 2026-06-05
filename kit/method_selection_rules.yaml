@@ -1,0 +1,253 @@
+# method_selection_rules.yaml
+# The "brain" of the agent. Each rule fires when its `when` conditions match the
+# combination of (project_declaration objectives) + (data_structure blocks/columns).
+# `recommend` carries the method, the exact FactoMineR/SensoMineR function, a Python
+# equivalent for live execution, the assumptions that MUST be checked, and the source.
+#
+# Precedence: rules are evaluated in order; multiple may fire (an objective often needs
+# a sequence of methods). The agent presents ALL fired rules at the approval gate and lets
+# the human pick — it never silently chooses one.
+#
+# Source codes:
+#   HLP = Husson, Le & Pages (2017), Exploratory Multivariate Analysis by Example Using R, 2nd ed.
+#   LW  = Le & Worch (2018), Analyzing Sensory Data with R
+#   LH  = Lawless & Heymann, Sensory Evaluation of Food: Principles and Practices
+#
+# IMPORTANT: any rule with `extrapolated: true` applies the SAME math to data types the
+# three sources do not actually demonstrate (brand-health, 4Ps, attitude trackers).
+# The agent must label these recommendations as extrapolation, not as sourced practice.
+
+rules:
+
+  - id: compare_products_anova
+    when:
+      objective_any: [compare_products, describe_products]
+      has_block_lens: [sensory]
+      layout: long_assessment
+      replicates_min: 1
+    recommend:
+      method: "ANOVA (per-attribute) + post-hoc"
+      r: "aov(attr ~ Product + Panelist + Session + Product:Panelist, data=...); then post-hoc"
+      sensominer: "decat(data, formul='~Product+Panelist', firstvar=...)"
+      python: "statsmodels.formula.api.ols + anova_lm; pingouin for post-hoc"
+      assumptions_to_check: [normality_of_residuals, homoscedasticity, independence, balanced_or_typeIII]
+      source: [LW-ch1, LH]
+
+  - id: panel_performance
+    when:
+      objective_any: [describe_products]
+      has_block_lens: [sensory]
+      has_role: [panelist_id, session]
+    recommend:
+      method: "Panel performance diagnostics"
+      sensominer: "paneliperf(data, formul='~Product+Panelist+Session+Product:Panelist', col.j=..., firstvar=...)"
+      python: "custom ANOVA per panelist (statsmodels)"
+      assumptions_to_check: [replicates_present]
+      source: [LW-ch1]
+
+  - id: pca_single_block
+    when:
+      objective_any: [describe_products, exploratory]
+      numeric_blocks_count: 1
+      layout_any: [wide_product_by_attribute]
+    recommend:
+      method: "PCA (on product means)"
+      r: "PCA(X, scale.unit=TRUE, ncp=Inf, graph=FALSE, quanti.sup=..., quali.sup=...)"
+      python: "prince.PCA / sklearn.decomposition.PCA on aggregated means"
+      note: "Use MEAN data for PCA; raw replicated data -> use CVA instead."
+      assumptions_to_check: [linearity, enough_products_vs_attributes, collinearity_expected_ok]
+      source: [HLP-ch1, LW-ch2, LH-18.2.1]
+
+  - id: mfa_multi_block
+    when:
+      objective_any: [relate_blocks, describe_products, exploratory]
+      numeric_blocks_count_min: 2
+      same_individuals_across_blocks: true
+    recommend:
+      method: "MFA (multiple lenses on same products)"
+      r: "MFA(X, group=c(...), type=rep('s', n_groups), name.group=c(...))"
+      python: "prince.MFA"
+      note: "THE method when there are several blocks/points of view on the same products."
+      assumptions_to_check: [blocks_share_individuals, within_block_standardization]
+      source: [LW-ch3, HLP]
+
+  - id: cvas_raw_discrimination
+    when:
+      objective_any: [discrimination]
+      has_block_lens: [sensory]
+      replicates_min: 2
+    recommend:
+      method: "Canonical Variate Analysis (discriminant) on raw replicated data"
+      r: "candisc / MASS::lda after MANOVA"
+      python: "sklearn.discriminant_analysis.LinearDiscriminantAnalysis"
+      assumptions_to_check: [replicates_present, multivariate_normality, equal_covariances]
+      source: [LH-18.2.2, LH-18.2.3]
+
+  - id: ca_contingency
+    when:
+      objective_any: [describe_products, exploratory]
+      layout: contingency
+    recommend:
+      method: "Correspondence Analysis"
+      r: "CA(contingency_table)"
+      python: "prince.CA"
+      assumptions_to_check: [counts_nonnegative, chi2_independence_context]
+      source: [LW-ch4, HLP-ch2]
+
+  - id: cata_significance
+    when:
+      objective_any: [compare_products]
+      has_role: [cata_term]
+    recommend:
+      method: "Cochran's Q (+ McNemar pairwise) then CA on the contingency table"
+      r: "aggregate+sum to build product x term table; CA(...); Cochran/McNemar tests"
+      python: "statsmodels Cochran's Q; prince.CA"
+      assumptions_to_check: [binary_coding_0_1, repeated_measures_structure]
+      source: [LW-ch4]
+
+  - id: mca_many_categorical
+    when:
+      objective_any: [describe_products, exploratory]
+      categorical_active_columns_min: 3
+    recommend:
+      method: "Multiple Correspondence Analysis"
+      r: "MCA(X, quali.sup=..., quanti.sup=...)"
+      python: "prince.MCA"
+      note: "Also the route for JAR data recoded to 3 levels analysed jointly."
+      assumptions_to_check: [categorical_only_active, rare_levels_handled]
+      source: [LW-ch6, HLP-ch3]
+
+  - id: sorting_napping
+    when:
+      data_methods_any: [sorting, napping]
+    recommend:
+      method: "Sorting -> MCA/MDS or FAST; Napping -> MFA"
+      r: "MCA(...) or MFA(...) ; SensoMineR fast()/indscal()"
+      python: "prince.MFA ; sklearn MDS"
+      assumptions_to_check: [enough_products, consistent_coding]
+      source: [LW-ch6, LW-ch7]
+
+  - id: internal_pref_map
+    when:
+      objective_any: [map_preferences]
+      has_block_lens: [hedonic]
+    recommend:
+      method: "Internal preference mapping (MDPref)"
+      r: "PCA on products x consumers liking matrix"
+      python: "prince.PCA on liking matrix"
+      assumptions_to_check: [min_6_products, products_differ_enough, vector_model_more_is_better, overfitting_risk_if_few_products]
+      source: [LW-ch8, LH-18.3.1]
+
+  - id: consumer_segmentation
+    when:
+      objective_any: [segment_consumers]
+      has_block_lens: [hedonic]
+    recommend:
+      method: "Clustering of consumers (HAC / HCPC, k-means)"
+      r: "HCPC(PCA(t(liking))) ; or kmeans"
+      python: "scipy hierarchical / sklearn.cluster"
+      assumptions_to_check: [cluster_stability, choose_k_justified, profile_each_cluster]
+      source: [LW-ch8]
+
+  - id: characterize_clusters
+    when:
+      objective_any: [characterize_clusters]
+      has_role_any: [demographic, attitude, usage_UA, perception]
+    recommend:
+      method: "Project demographic/attitude as SUPPLEMENTARY variables; describe with catdes/condes"
+      r: "catdes(df, num.var=cluster_col) ; condes(df, num.var=...)"
+      python: "groupby + chi2 / kruskal per external variable"
+      assumptions_to_check: [supplementary_not_active, multiple_testing_caution]
+      source: [LW-ch8, HLP]
+
+  - id: drivers_of_liking
+    when:
+      objective_any: [drivers_of_liking]
+      has_block_lens: [sensory, hedonic]
+    recommend:
+      method: "Drivers of (dis)liking: simple + quadratic regression; PCR/PLS for collinearity"
+      r: "lm(Liking ~ attribute) per attribute; pls::oscorespls.fit ; PCR via PCA + lm"
+      python: "statsmodels OLS per attribute; sklearn PLSRegression / PCR"
+      assumptions_to_check: [driver_is_context_dependent, multicollinearity, saturation_quadratic_term]
+      source: [LW-ch9]
+
+  - id: external_pref_map
+    when:
+      objective_any: [map_preferences, optimize_product]
+      has_block_lens: [sensory, hedonic]
+    recommend:
+      method: "External preference mapping (PrefMap) / PrefMFA -> response surface"
+      sensominer: "carto(product_coords, liking_matrix)"
+      r: "PCA sensory -> per-consumer polynomial regression of liking on dims"
+      python: "PCA + per-consumer polynomial regression, surface via griddata"
+      assumptions_to_check: [n_dims_le_n_over_3, overfitting_with_complex_models, dims_pertain_to_preference]
+      source: [LW-ch9, LH-18.3.2]
+
+  - id: penalty_analysis_jar
+    when:
+      objective_any: [optimize_product]
+      has_role: [jar]
+      has_block_lens: [hedonic]
+    recommend:
+      method: "Penalty analysis (mean drop) on JAR + overall liking"
+      sensominer: "JAR / penalty routines; or manual mean-drop per Schraidt"
+      r: "recode JAR to 3 levels; mean drop = JAR_mean - nonJAR_mean; plot vs % consumers"
+      python: "pandas groupby mean-drop; matplotlib scatter"
+      assumptions_to_check: [attribute_has_an_optimum, consumers_interpret_attribute, action_only_if_big_drop_and_big_pct]
+      source: [LW-ch10, LH-14.5.5]
+
+  - id: ideal_profile_idmap
+    when:
+      objective_any: [optimize_product]
+      data_methods_any: [hedonic_test]
+      has_role: [perception]
+    recommend:
+      method: "Ideal Profile Method -> IdMap, with consistency check first"
+      sensominer: "ConsistencyIdeal(ideal, type='sensory'); IdMap routines"
+      r: "SensoMineR IdMap"
+      python: "no direct equivalent; replicate logic with regression"
+      assumptions_to_check: [ideal_data_consistency_sensory_and_hedonic, ideals_are_fictive_products]
+      source: [LW-ch10]
+
+  - id: tri_block_path
+    when:
+      objective_any: [relate_blocks]
+      has_block_lens: [instrumental, sensory, hedonic]
+    recommend:
+      method: "PLS path modelling across physicochemical -> sensory -> hedonic"
+      r: "plspm / MFA combined with PLS path modelling (Pages & Tenenhaus)"
+      python: "no first-class equivalent; sequential PLSRegression as approximation"
+      assumptions_to_check: [block_structure_specified, links_are_statistical_not_causal]
+      source: ["Pages & Tenenhaus (2001), cited in LW-ch9 readings"]
+
+  - id: brand_consumer_link
+    extrapolated: true
+    when:
+      objective_any: [relate_blocks, exploratory]
+      has_block_lens_any: [brand_health, marketing_4P, attitude, usage_UA]
+    recommend:
+      method: "MFA (mixed blocks) / MCA / CA applied to brand+consumer tables"
+      python: "prince.MFA / prince.MCA / prince.CA"
+      note: "EXTRAPOLATION: same multivariate machinery, but NOT demonstrated on brand/marketing data in the three sources. Requires a marketing-analytics source to validate."
+      assumptions_to_check: [method_generalizes_but_unvalidated_here, get_domain_expert_review]
+      source: ["extrapolated from HLP general multivariate framework"]
+
+  - id: shelf_life
+    extrapolated: true
+    when:
+      objective_any: [shelf_life]
+      has_block_lens: [shelf_life]
+    recommend:
+      method: "Survival analysis / acceptability-over-time modelling"
+      python: "lifelines (Kaplan-Meier, Cox); statsmodels"
+      note: "EXTRAPOLATION: shelf-life is only mentioned, not a core analysis in the three sources."
+      assumptions_to_check: [censoring_handled, time_sampling_adequate]
+      source: ["extrapolated; needs a dedicated shelf-life source"]
+
+# Global guards the engine attaches to EVERY recommendation:
+global_guards:
+  - "If n_products < 6 and method is a preference map: warn about overfitting and unstable interpretation (LH-18.3.1)."
+  - "If replicates < 2: forbid raw-data methods (CVA) and any claim requiring within-cell error."
+  - "Exploratory methods (PCA/MCA/MFA/CA) do NOT yield classical p-values; for significance, pair with ANOVA / chi2 / Cochran's Q or confidence ellipses (LW)."
+  - "Always run univariate (ANOVA) alongside multivariate; multivariate adds interpretation ambiguity (LH-ch18)."
+  - "decision_stakes in {public_claim, regulatory} => never finalize without human sign-off."
