@@ -1,0 +1,19 @@
+{
+  "file": { "path": "examples/yogurt_qda_long.csv", "format": "csv", "sep": ";", "decimal": ".", "header": true, "row_names_col": null },
+  "layout": "long_assessment",
+  "columns": [
+    { "name": "Panelist", "dtype": "id", "role": "panelist_id" },
+    { "name": "Product", "dtype": "categorical", "role": "product_id" },
+    { "name": "Session", "dtype": "categorical", "role": "session" },
+    { "name": "Sweet",  "dtype": "numeric", "role": "attribute_sensory", "block": "QDA", "scale": { "type": "interval", "min": 0, "max": 10 } },
+    { "name": "Sour",   "dtype": "numeric", "role": "attribute_sensory", "block": "QDA", "scale": { "type": "interval", "min": 0, "max": 10 } },
+    { "name": "Creamy", "dtype": "numeric", "role": "attribute_sensory", "block": "QDA", "scale": { "type": "interval", "min": 0, "max": 10 } },
+    { "name": "Fruity", "dtype": "numeric", "role": "attribute_sensory", "block": "QDA", "scale": { "type": "interval", "min": 0, "max": 10 } },
+    { "name": "Thick",  "dtype": "numeric", "role": "attribute_sensory", "block": "QDA", "scale": { "type": "interval", "min": 0, "max": 10 } }
+  ],
+  "blocks": [
+    { "name": "QDA", "lens": "sensory", "columns": ["Sweet", "Sour", "Creamy", "Fruity", "Thick"], "standardize": true }
+  ],
+  "keys": { "product_key": "Product", "panelist_key": "Panelist" },
+  "_note": "Single-table descriptor for the QDA file. The richer multi-block case (sensory + physicochemical + hedonic + JAR) lives across yogurt_phys_means.csv / yogurt_liking.csv / yogurt_jar.csv and is what makes the MFA and preference-map rules fire; describe those as additional blocks when you wire multi-file loading."
+}
