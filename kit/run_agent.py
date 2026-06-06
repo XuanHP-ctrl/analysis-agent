@@ -56,19 +56,22 @@ def load_contracts(declaration_path, structure_path):
     return declaration, structure, rules, system_prompt
 
 
-def profile_data(structure, base=ROOT):
-    f = structure["file"]; fmt = f.get("format", "csv")
-    path = (base / f["path"]) if not os.path.isabs(f["path"]) else Path(f["path"])
+def _read_table(spec, base=ROOT):
+    """Read one table. `spec` carries path/format/sep/decimal and an optional `sheet`."""
+    fmt = spec.get("format", "csv")
+    path = (base / spec["path"]) if not os.path.isabs(spec["path"]) else Path(spec["path"])
     if fmt in ("csv", "tsv"):
-        df = pd.read_csv(path, sep=f.get("sep", ";"), decimal=f.get("decimal", "."),
-                         encoding=f.get("encoding", "utf-8"))
-    elif fmt == "xlsx":
-        df = pd.read_excel(path)
-    elif fmt == "parquet":
-        df = pd.read_parquet(path)
-    else:
-        raise ValueError(f"Unsupported format: {fmt}")
-    prof = {"path": str(path), "n_rows": int(len(df)), "n_cols": int(df.shape[1]), "columns": []}
+        return pd.read_csv(path, sep=spec.get("sep", ";"), decimal=spec.get("decimal", "."),
+                           encoding=spec.get("encoding", "utf-8"))
+    if fmt == "xlsx":
+        return pd.read_excel(path, sheet_name=spec.get("sheet", 0))   # sheet-aware
+    if fmt == "parquet":
+        return pd.read_parquet(path)
+    raise ValueError(f"Unsupported format: {fmt}")
+
+
+def _profile_columns(df):
+    cols = []
     for c in df.columns:
         s = df[c]; info = {"name": str(c), "dtype": str(s.dtype),
                            "n_missing": int(s.isna().sum()), "n_unique": int(s.nunique(dropna=True))}
@@ -76,8 +79,57 @@ def profile_data(structure, base=ROOT):
             info["min"], info["max"] = float(s.min()), float(s.max())
         else:
             info["sample_levels"] = [str(x) for x in s.dropna().unique()[:8]]
-        prof["columns"].append(info)
-    return prof
+        cols.append(info)
+    return cols
+
+
+def _apply_recodes(df, recodes):
+    """Apply group_recodes: create new grouping columns, optionally dropping levels."""
+    notes = []
+    for new_col, spec in (recodes or {}).items():
+        src = spec["from"]
+        if src not in df.columns:
+            continue
+        col = df[src].astype(str).str.strip()
+        if "map" in spec:
+            col = col.map(spec["map"]).fillna(col)
+        df[new_col] = col
+        drop = spec.get("drop", [])
+        if drop:
+            before = len(df); df = df[~df[src].astype(str).str.strip().isin(drop)]
+            notes.append(f"{new_col}: dropped {before-len(df)} rows in {drop}")
+    return df, notes
+
+
+def profile_data(structure, base=ROOT):
+    """Profile EITHER a single-table descriptor (`file`+`columns`) OR a multi-table
+    workbook descriptor (`tables`: [{sheet, ...}]). Returns a profile dict the agent
+    reconciles against. Backward compatible with the original single-table format."""
+    recodes = structure.get("group_recodes", {})
+
+    # multi-table / multi-sheet workbook
+    if "tables" in structure:
+        fmeta = structure.get("file", {})
+        out = {"format": "workbook", "tables": [], "recodes": list(recodes)}
+        for t in structure["tables"]:
+            spec = {**fmeta, **t}                       # table inherits file-level path/format
+            df = _read_table(spec, base)
+            df, notes = _apply_recodes(df, recodes)
+            out["tables"].append({
+                "name": t.get("name", t.get("sheet", "?")),
+                "sheet": t.get("sheet"),
+                "n_rows": int(len(df)), "n_cols": int(df.shape[1]),
+                "blocks": [b.get("name") for b in t.get("blocks", [])],
+                "recode_notes": notes,
+                "columns": _profile_columns(df),
+            })
+        return out
+
+    # single table (original format)
+    df = _read_table(structure["file"], base)
+    df, notes = _apply_recodes(df, recodes)
+    return {"path": structure["file"].get("path"), "n_rows": int(len(df)),
+            "n_cols": int(df.shape[1]), "recode_notes": notes, "columns": _profile_columns(df)}
 
 
 # ---------------------------------------------------------------------------

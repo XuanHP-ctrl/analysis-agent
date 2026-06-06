@@ -244,6 +244,87 @@ rules:
       assumptions_to_check: [censoring_handled, time_sampling_adequate]
       source: ["extrapolated; needs a dedicated shelf-life source"]
 
+  - id: cata_between_groups
+    when:
+      objective_any: [compare_products, characterize_clusters]
+      has_role: [cata_term]
+      design: independent_groups
+    recommend:
+      method: "Per-term comparison across INDEPENDENT groups: chi-square / Fisher + BH correction; CA to map"
+      python: "scipy chi2_contingency / fisher_exact; statsmodels multipletests; prince.CA"
+      note: "Use this — NOT Cochran's Q — when groups are independent and there is one stimulus. Cochran's Q requires the SAME subjects rating MULTIPLE products."
+      assumptions_to_check: [groups_independent, expected_counts_or_fisher, multiple_testing_correction]
+      source: [LW-ch4]
+
+  - id: paired_product_comparison
+    when:
+      objective_any: [compare_products]
+      design: within_subject_two_products
+    recommend:
+      method: "Paired comparison of two product types per attribute (in-group favouritism)"
+      python: "scipy ttest_rel / wilcoxon; statsmodels multipletests (BH)"
+      assumptions_to_check: [paired_structure, normality_or_wilcoxon, multiple_testing_correction]
+      source: [LW-ch1, LH]
+
+  - id: implicit_measure_iat
+    extrapolated: true
+    when:
+      objective_any: [compare_products, characterize_clusters]
+      has_block_lens: [attitude]
+      has_role: [d_score]
+    recommend:
+      method: "Compare IAT d-score across groups (two-way ANOVA region x user); report effect sizes"
+      python: "statsmodels ols + anova_lm; pingouin effect sizes"
+      note: "SIGN of d-score requires the IAT block-design (which category was paired) to interpret valence; describe differences, do not claim direction without it."
+      assumptions_to_check: [d_score_sign_convention_documented, normality_of_residuals, balanced_or_typeIII]
+      source: ["Greenwald, Nosek & Banaji (2003) JPSP 85:197-216 — D-score; Greenwald, McGhee & Schwartz (1998)"]
+
+  - id: mixed_effects_model
+    when:
+      objective_any: [compare_products, describe_products]
+      has_role: [panelist_id]
+      random_effects_needed: true
+    recommend:
+      method: "Linear mixed-effects model (random assessor/consumer effects)"
+      r: "lmerTest::lmer(attr ~ Product + (1|Panelist) + (1|Panelist:Product))"
+      python: "statsmodels MixedLM / pymer4"
+      assumptions_to_check: [random_effect_structure, residual_normality, singular_fit_check]
+      source: ["[RULE] add a mixed-models reference (e.g. Brms/lme4 literature)"]
+
+  - id: ordinal_logistic
+    when:
+      objective_any: [compare_products, optimize_product]
+      has_role_any: [jar]
+      scale_type: ordinal
+    recommend:
+      method: "Ordinal (proportional-odds) logistic regression for Likert/JAR responses"
+      python: "statsmodels OrderedModel; or mord"
+      note: "Proper model for ordered categories instead of treating them as interval."
+      assumptions_to_check: [proportional_odds, enough_per_category]
+      source: ["[RULE] add an ordinal-regression reference"]
+
+  - id: ml_driver_importance
+    when:
+      objective_any: [drivers_of_liking]
+      has_block_lens: [sensory, hedonic]
+    recommend:
+      method: "Tree-based driver importance (random forest / gradient boosting) as a complement to regression"
+      python: "sklearn RandomForestRegressor + permutation_importance; shap (optional)"
+      note: "Complement, not replacement, for interpretable regression; captures non-linearities/interactions."
+      assumptions_to_check: [enough_observations, validation_split, importance_is_associative_not_causal]
+      source: ["[RULE] add an ML-for-sensory reference"]
+
+  - id: survival_shelf_life
+    extrapolated: true
+    when:
+      objective_any: [shelf_life]
+      has_role: [time]
+    recommend:
+      method: "Survival analysis of consumer acceptability over time (cut-off point)"
+      python: "lifelines KaplanMeier / CoxPH"
+      assumptions_to_check: [censoring_handled, proportional_hazards_if_cox]
+      source: ["[RULE]+[SOURCE] add a sensory shelf-life reference (e.g. Hough, survival methods)"]
+
 # Global guards the engine attaches to EVERY recommendation:
 global_guards:
   - "If n_products < 6 and method is a preference map: warn about overfitting and unstable interpretation (LH-18.3.1)."
@@ -251,3 +332,5 @@ global_guards:
   - "Exploratory methods (PCA/MCA/MFA/CA) do NOT yield classical p-values; for significance, pair with ANOVA / chi2 / Cochran's Q or confidence ellipses (LW)."
   - "Always run univariate (ANOVA) alongside multivariate; multivariate adds interpretation ambiguity (LH-ch18)."
   - "decision_stakes in {public_claim, regulatory} => never finalize without human sign-off."
+  - "When testing many terms/attributes at once, ALWAYS apply a multiple-testing correction (e.g. Benjamini-Hochberg) and report effect sizes, not just p-values."
+  - "Match the test to the DESIGN: independent groups => chi-square/ANOVA; same subjects x multiple products => Cochran's Q / repeated-measures / paired tests."
