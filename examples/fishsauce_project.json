@@ -1,31 +1,61 @@
 {
-  "project": { "id": "P-2026-NM", "name": "Fish sauce perception (word association + IAT)", "client": "Internal", "analyst": "XuanHP", "date": "2026-06-06" },
+  "project": {
+    "name": "Fish sauce perception (word association + IAT)",
+    "analyst": "XuanHP",
+    "date": "2026-06-06",
+    "domain": "consumer"
+  },
   "domain": "consumer",
-  "business_question": "How do consumers perceive traditional vs industrial fish sauce, and do associations/attitudes differ by region (Bắc/Trung/Nam) and user segment (Truyền thống/Công nghiệp)?",
+  "business_question": "How do consumers perceive traditional vs industrial fish sauce, and do associations/attitudes differ by region and user segment?",
   "objectives": [
-    { "objective_type": "describe_products", "primary": true, "description": "Describe word-association profiles and explicit/implicit attitudes by group." },
-    { "objective_type": "compare_products", "description": "Compare perception of the traditional vs industrial product type." },
-    { "objective_type": "characterize_clusters", "description": "Characterize differences by region and user segment." },
-    { "objective_type": "relate_blocks", "description": "Link the word-association block to the attitude (IAT + explicit) block." },
-    { "objective_type": "exploratory" }
+    {
+      "objective_type": "describe_products",
+      "primary": true,
+      "description": "Describe associations and attitudes by group."
+    },
+    {
+      "objective_type": "compare_products",
+      "primary": false,
+      "description": "Compare traditional vs industrial product type."
+    },
+    {
+      "objective_type": "characterize_clusters",
+      "primary": false,
+      "description": "Differences by region and user segment."
+    },
+    {
+      "objective_type": "relate_blocks",
+      "primary": false,
+      "description": "Link word association to the attitude/IAT block."
+    }
   ],
   "data_collection": {
-    "methods": ["free_comment", "attitude_survey", "survey_UA"],
+    "methods": [
+      "free_comment",
+      "attitude_survey",
+      "survey_UA"
+    ],
     "presentation_design": "unknown",
     "balanced_design": false,
     "replicates": 0,
     "n_products": 2,
     "n_consumers": 295,
     "n_panelists": 0,
-    "hedonic_scale": { "type": "other", "min": 1, "max": 9 },
-    "sampling": "Convenience sample of fish-sauce users; quotas by region/user type; not nationally representative.",
+    "hedonic_scale": {
+      "type": "other",
+      "min": 1,
+      "max": 9
+    },
+    "sampling": "Convenience sample of fish-sauce users; not nationally representative.",
     "fieldwork_period": "2026-05",
     "known_limitations": [
-      "Word association is free elicitation coded to word/element/topic (closest enum: free_comment)",
-      "IAT d_score sign convention requires the block-design doc to interpret valence",
-      "Region 'Không rõ'/'Unknown' present; gender has a casing typo ('Nam' vs 'nam')",
-      "Reaction-time columns use Vietnamese number format and need parsing"
+      "IAT d-score sign needs the block-design doc to interpret valence",
+      "Region 'Không rõ'/'Unknown' present; gender casing typo"
     ]
   },
-  "governance": { "anonymized": true, "consent_for_analysis": true, "decision_stakes": "product_decision" }
+  "governance": {
+    "anonymized": true,
+    "consent_for_analysis": true,
+    "decision_stakes": "product_decision"
+  }
 }

@@ -1,0 +1,71 @@
+# ============================================================================
+# PROJECT INTAKE  —  fill this in BEFORE any analysis.
+# Copy to intake/<your_project>_intake.yaml, fill the blanks, then run:
+#   python intake/intake_to_contracts.py intake/<your_project>_intake.yaml
+# It deterministically produces the two contracts the agent runs on.
+# Leave a field blank only if it truly does not apply; the converter will
+# tell you exactly what is missing. Do NOT let the agent guess these.
+# ============================================================================
+
+project:
+  name:            # e.g. "Fish sauce perception"
+  analyst:         # person accountable (not the agent)
+  date:            # YYYY-MM-DD
+  domain:          # one of: consumer | brand | product | mixed
+
+business_question:  # plain-language question the stakeholder wants answered
+
+objectives:         # one or more. type ∈ {describe_products, compare_products,
+                    #   segment_consumers, drivers_of_liking, optimize_product,
+                    #   map_preferences, relate_blocks, characterize_clusters,
+                    #   discrimination, shelf_life, exploratory}
+  - type:
+    primary: true
+    description:
+  # - type:
+  #   description:
+
+data_collection:
+  methods: []       # subset of: QDA_descriptive, CATA, JAR, hedonic_test, napping,
+                    #   sorting, free_comment, free_choice_profiling, survey_UA,
+                    #   attitude_survey, brand_health_tracker,
+                    #   instrumental_physicochemical, shelf_life_study, other
+  presentation_design:   # monadic | monadic_sequential | paired | unknown
+  balanced_design:       # true | false
+  replicates:            # integer; 0/1 means no replication
+  n_products:            # integer (>=1)
+  n_consumers:           # integer
+  n_panelists:           # integer
+  hedonic_scale:
+    type:                # 9_point | line_scale | 7_point | other
+    min:
+    max:
+  sampling:              # how respondents were recruited; representativeness?
+  fieldwork_period:
+  known_limitations: []  # list; carried into every conclusion
+
+governance:
+  anonymized:            # true | false  (no personal identifiers?)
+  consent_for_analysis:  # true | false
+  decision_stakes:       # exploratory_internal | product_decision | public_claim | regulatory
+
+# ---------------------------------------------------------------------------
+# DATA STRUCTURE — describe the raw file(s). One entry per table/sheet.
+# ---------------------------------------------------------------------------
+data:
+  file:
+    path:                # e.g. data/Word_association.xlsx  (keep real data OUT of git)
+    format:              # csv | tsv | xlsx | parquet
+    sep: ";"
+    decimal: "."
+  tables:
+    - name:              # short id, e.g. iat
+      sheet:             # sheet name for xlsx; omit for csv
+      layout:            # long_assessment | wide_product_by_attribute | consumer_by_product | contingency | consumer_by_term_binary | consumer_by_attribute_paired | custom
+      group_columns: []  # demographic/segment columns, e.g. [region, user]
+      blocks:            # group columns into lenses
+        - name:
+          lens:          # sensory | instrumental | hedonic | jar | cata | demographic | attitude | usage_UA | brand_health | marketing_4P | perception | shelf_life
+          columns: []
+  group_recodes: {}      # optional, e.g.
+                         #   Region3: {from: region, map: {north: Bắc, central: Trung, south: Nam}, drop: [Unknown]}
